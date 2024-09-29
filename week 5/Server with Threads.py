@@ -19,7 +19,7 @@ def start_server():
     server_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
     server_socket.bind(('127.0.0.1', 2037))
     server_socket.listen(5)
-    print("Server started. Waiting for clients....")
+    print("Server started. Waiting for clients.....")
 
     while True:
         client_socket, client_address = server_socket.accept()
