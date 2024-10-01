@@ -19,7 +19,7 @@ def start_server():
             print("Processing large data from client 1...")
             time.sleep(20)  #delay
 
-        client_socket.sendall(b'Hello, client!')
+        client_socket.sendall(b"Hello, Client!")
         client_socket.close()
 
 if __name__ == '__main__':
