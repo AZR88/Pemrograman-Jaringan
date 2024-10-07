@@ -10,7 +10,7 @@ def handle_client(client_socket, client_address):
     if data.decode('utf-8') == 'client 1':
         print("Processing large data from client 1...")
         import time
-        time.sleep(10)  # Simulate delay
+        time.sleep(0)  # Simulate delay
     
     client_socket.sendall(b'Hello, client!')
     client_socket.close()
@@ -28,4 +28,24 @@ def start_server():
 
 if __name__ == '__main__':
     start_server()
- 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
