@@ -2,7 +2,7 @@ import socket
 
 # Konfigurasi alamat dan port server
 HOST = '127.0.0.1'  # Alamat localhost
-PORT = 8080         # Port server
+PORT = 2037       # Port server
 
 data_store = {}  # Tempat penyimpanan data sederhana di server
 
@@ -31,8 +31,14 @@ while True:
         http_response = f"HTTP/1.1 200 OK\n\n{response_body}"
     
     elif method == 'PUT':
+        # Memeriksa apakah body tersedia dalam request
+        if "\n\n" in request:
+            body = request.split("\n\n")[1]
+        else:
+            body = ""
+        
         # Simpan data yang dikirim dalam body
-        data_store[path] = request.split("\n\n")[1]
+        data_store[path] = body
         http_response = "HTTP/1.1 200 OK\n\nData berhasil disimpan"
     
     elif method == 'DELETE':

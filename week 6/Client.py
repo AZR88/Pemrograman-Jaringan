@@ -2,7 +2,7 @@ import socket
 
 def send_request(method, path, body=None):
     HOST = '127.0.0.1'
-    PORT = 8080
+    PORT = 2037
 
     client_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
     client_socket.connect((HOST, PORT))
