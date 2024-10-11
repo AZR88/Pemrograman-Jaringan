@@ -2,9 +2,9 @@ import socket
 
 # Konfigurasi alamat dan port server
 HOST = '127.0.0.1'  # Alamat localhost
-PORT = 2037       # Port server
+PORT = 80      # Port server
 
-data_store = {}  # Tempat penyimpanan data sederhana di server
+data_store = {}  
 
 # Membuat socket server
 server_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
