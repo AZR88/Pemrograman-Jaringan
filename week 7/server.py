@@ -2,9 +2,9 @@ import socket
 import os
 
 # Konfigurasi alamat dan port server
-HOST = '127.0.0.1'  # Alamat localhost
-PORT = 8080         # Port server
-BASE_DIR = "./files"  # Direktori tempat file berada
+HOST = '127.0.0.1'  
+PORT = 80         
+BASE_DIR = "C:/Azriel/KULIAH/Pemrograman Jaringan/week 7/files"  # Direktori tempat file berada
 
 # Membuat socket server
 server_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
