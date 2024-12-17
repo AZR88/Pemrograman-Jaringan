@@ -1,104 +1,132 @@
-// WebRTC - Client Side
 
-// Inisialisasi peer connection dan media stream
-let peerConnection;
-let mediaStream;
+// webRTC
 
-// Mendapatkan elemen untuk video display
-const videoGrid = document.getElementById("video-grid");
 
-// Menghubungkan ke room dengan socket.emit
-socket.emit('joinRoom', roomId);
+
+socket.emit('joinRoom', roomId)
 
 socket.on("notify_new_joining", () => {
-    makeAnOffer();
-});
+    makeAnOffer()
+})
 
-// Fungsi untuk membuat offer
 async function makeAnOffer() {
-    console.log("Sending offer...");
+    console.log("send offer");
     const offer = await peerConnection.createOffer();
-    await peerConnection.setLocalDescription(offer);
-    socket.emit('makeOffer', offer, roomId);
+    peerConnection.setLocalDescription(offer);
+    socket.emit('makeOffer', offer, roomId)
+
 }
 
-// Mendapatkan offer dan membuat answer
+
 socket.on("receiveOffer", async (offer) => {
-    console.log("Receiving offer...");
-    await peerConnection.setRemoteDescription(offer);
-    const answer = await peerConnection.createAnswer();
-    await peerConnection.setLocalDescription(answer);
-    socket.emit('answer', answer, roomId);
-});
+    peerConnection.setRemoteDescription(offer);
+    const answer = await peerConnection.createAnswer()
+    peerConnection.setLocalDescription(answer);
+    socket.emit('answar', answer, roomId)
 
-// Mendapatkan answer dan menyetelnya pada peerConnection
-socket.on("answer", async (answer) => {
-    await peerConnection.setRemoteDescription(answer);
-});
+})
 
-// Fungsi untuk menambah track media stream ke RTC peer connection
-async function addTrackToWebRTC() {
-    if (mediaStream) {
-        mediaStream.getTracks().forEach(track => {
-            peerConnection.addTrack(track, mediaStream);
-        });
-    }
+socket.on("answer", (answer) => {
+    peerConnection.setRemoteDescription(answer);
+})
+
+
+function addTrackToWebRTC() {
+    mediaStream.getTracks().forEach(track => {
+        peerConnection.addTrack(track);
+    })
 }
 
-// Membuat koneksi RTC
 function makeAWebRTCConnection() {
     peerConnection = new RTCPeerConnection();
 
-    // Event listener untuk ICE Candidate
     peerConnection.addEventListener('icecandidate', handleCandidate);
-    peerConnection.addEventListener('track', (event) => {
-        console.log(event);
-        const video = document.createElement('video');
-        video.srcObject = event.streams[0];
-        video.addEventListener('loadedmetadata', () => {
-            video.play();
-        });
-        videoGrid.appendChild(video);
-    });
+    peerConnection.addEventListener('addStream', (data) => {
+        console.log(data);
+    })
 
-    addTrackToWebRTC();
+   
+
+    addTrackToWebRTC()
 }
 
-// Menangani ICE candidate dan mengirimkannya ke server
-function handleCandidate(event) {
-    if (event.candidate) {
-        socket.emit('sendIceCandidate', event.candidate, roomId);
-    }
+
+
+
+function handleCandidate(data) {
+    socket.emit('ice', data.candidate, roomId)
 }
 
-// Mendapatkan ICE candidate dari server
-socket.on("receiveCandidate", (candidate) => {
-    peerConnection.addIceCandidate(new RTCIceCandidate(candidate));
-});
 
-// Menambahkan track media ke RTC
+socket.on("ice", (candidate) => {
+    peerConnection.addICECandidate(candidate)
+  
+})
+
+
+
+
+
+
+// get new user joining notification
+socket.on('notify_new_joining', () => {
+    makeAnOffer()
+
+})
+
+
+// add track to RTC
 async function addTrackToWebRTC() {
     mediaStream.getTracks().forEach(track => {
-        peerConnection.addTrack(track, mediaStream);
-    });
+        RTC.addTrack(track, mediaStream);
+    })
 
-    // Listening to ICE candidate event
-    peerConnection.addEventListener('icecandidate', (event) => {
-        if (event.candidate) {
-            socket.emit("sendIceCandidate", event.candidate, roomId);
-        }
-    });
+    // listing to icecandidate event
+    RTC.addEventListener('icecandidate', (data) => {
+        // send candidate 
+       
+        socket.emit("send_ice_candidate", data.candidate, roomId)
+    })
 }
 
-// Mendapatkan video stream dan menambahkannya ke RTC
-async function getMediaStream() {
-    try {
-        mediaStream = await navigator.mediaDevices.getUserMedia({ video: true, audio: true });
-        addTrackToWebRTC();
-    } catch (err) {
-        console.error("Error getting media stream: ", err);
-    }
+RTC.addEventListener('addstream', (data) => {
+    console.log(data);
+    const video = document.createElement('video');
+    video.srcObject = data.stream;
+    video.addEventListener('loadedmetadata', () => {
+        video.play()
+    })
+    videoGrid.appendChild(video)
+})
+
+
+// make an offer
+async function makeAnOffer() {
+    const offer = await RTC.createOffer();
+    RTC.setLocalDescription(offer);
+    // send an offer
+    socket.emit('send_offer', offer, roomId)
 }
 
-// Panggil fungsi untuk mendapatkan media stream dari perangkat
-getMediaStream();
+// get offter 
+socket.on("get_offer", async (offer) => {
+    RTC.setRemoteDescription(offer);
+    const answar = await RTC.createAnswer();
+    RTC.setLocalDescription(answar);
+
+    // send the answer
+    socket.emit('send_answer', answar, roomId)
+
+})
+
+
+// get answer
+socket.on("get_answer", (answer) => {
+    RTC.setRemoteDescription(answer)
+})
+
+
+socket.on("get_candidate",  (candidate) => {
+    RTC.addIceCandidate(candidate)
+
+})

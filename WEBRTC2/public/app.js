@@ -1,4 +1,3 @@
-// Video and control element references
 const videoGrid = document.getElementById("video_grid");
 const muteBtn = document.getElementById("muteBtn");
 const cameraoff = document.getElementById("cameraoff");
@@ -9,7 +8,6 @@ const chatInput = document.getElementById("chat-input");
 const chatForm = document.getElementById("chat-form");
 const chatMessages = document.getElementById("chat-messages");
 
-// socket initialization
 const socket = io();
 
 let mediaStream;
@@ -17,28 +15,39 @@ let mute = false;
 let camera = true;
 let currentCam;
 let RTC;
-let videoElements = []; // Array to store video elements and their associated IDs
+let videoElements = [];
 
-// Send message when the form is submitted
+// Tambahkan event listener untuk mengirim pesan
 chatForm.addEventListener("submit", (e) => {
     e.preventDefault();
     const message = chatInput.value.trim();
     if (message) {
-        socket.emit("send-message", message, roomId);  // Emit the message with the room ID
-        chatInput.value = "";  // Clear input field
+        socket.emit("send-message", message, roomId);
+        chatInput.value = "";  // Bersihkan input field
+        displayMessage("You: " + message);  // Tampilkan pesan sendiri
     }
 });
 
-// Event listener for new participant joining
-socket.on("newJoining", (message) => showNotification(message, "join"));
-
-// Event listener for user leaving
-socket.on("userLeft", (message) => {
-    showNotification(message, "leave");
-    removeUserMedia(message); // Remove media when user leaves
+// Terima pesan dari server
+socket.on("receive-message", (message) => {
+    displayMessage(message);
 });
 
-// Show notification
+function displayMessage(message) {
+    const messageItem = document.createElement("li");
+    messageItem.textContent = message;
+    chatMessages.appendChild(messageItem);
+    chatMessages.scrollTop = chatMessages.scrollHeight;
+}
+
+
+
+socket.on("newJoining", (message) => showNotification(message, "join"));
+socket.on("userLeft", (message) => {
+    showNotification(message, "leave");
+    removeUserMedia(message);
+});
+
 function showNotification(message, type) {
     const notification = document.createElement("div");
     notification.classList.add("notification", type);
@@ -51,7 +60,6 @@ function showNotification(message, type) {
     }
 }
 
-// Listen for incoming messages
 socket.on("receive-message", (message) => {
     const messageItem = document.createElement("li");
     messageItem.textContent = message;
@@ -59,8 +67,7 @@ socket.on("receive-message", (message) => {
     chatMessages.scrollTop = chatMessages.scrollHeight;
 });
 
-// Sound mute handler
-muteBtn.addEventListener("click", () => {
+muteBtn.addEventListener("click", (e) => {
     if (mute) {
         mute = false;
         muteBtn.textContent = "Mute yourself";
@@ -72,7 +79,6 @@ muteBtn.addEventListener("click", () => {
     }
 });
 
-// Camera off/on handler
 cameraoff.addEventListener('click', () => {
     if (camera) {
         cameraoff.textContent = "Turn on camera";
@@ -85,7 +91,47 @@ cameraoff.addEventListener('click', () => {
     }
 });
 
-// Getting the media
+// Event listener untuk tombol share screen
+screenShare.addEventListener("click", async () => {
+    try {
+        const displayMediaOptions = {
+            video: {
+                cursor: "always"
+            },
+            audio: false
+        };
+        const screenStream = await navigator.mediaDevices.getDisplayMedia(displayMediaOptions);
+        
+        // Tambahkan track dari screen share ke peer connection
+        screenStream.getTracks().forEach(track => {
+            RTC.addTrack(track, screenStream);
+        });
+
+        // Perbarui videoGrid dengan stream dari share screen
+        const video = document.createElement('video');
+        video.srcObject = screenStream;
+        video.id = `screen-${Date.now()}`; // Berikan ID unik untuk video
+        video.addEventListener('loadedmetadata', () => {
+            video.play();
+        });
+
+        videoGrid.appendChild(video);
+
+        // Event listener untuk menangani penghentian screen sharing
+        screenStream.getVideoTracks()[0].addEventListener('ended', () => {
+            console.log('Screen sharing stopped');
+            const videoElement = document.getElementById(video.id);
+            if (videoElement) {
+                videoElement.remove(); // Hapus elemen video ketika screen sharing berhenti
+            }
+        });
+    } catch (error) {
+        console.error("Error sharing screen: ", error);
+    }
+});
+
+
+
 async function getMedia(cameraId, micId) {
     currentCam = cameraId === null ? currentCam : cameraId;
 
@@ -117,9 +163,9 @@ async function getMedia(cameraId, micId) {
         displayMedia();
         getAllCameras();
         getAllMics();
-        makeWebRTCConnection();
+        makeAWebRTCConnection();
 
-        socket.emit('joinRoom', roomId);  // Emit to server that user is joining room
+        socket.emit('joinRoom', roomId);
     } catch (error) {
         console.log(error);
     }
@@ -127,13 +173,11 @@ async function getMedia(cameraId, micId) {
 
 getMedia();
 
-// Display media
 function displayMedia() {
     const video = document.createElement('video');
     video.srcObject = mediaStream;
 
-    // Add a unique ID to the video element (based on the timestamp)
-    const videoId = `video-${Date.now()}`; // Unique ID based on timestamp
+    const videoId = `video-${socket.id}`; // Gunakan socket.id sebagai ID video
     video.id = videoId;
 
     video.addEventListener('loadedmetadata', () => {
@@ -141,10 +185,9 @@ function displayMedia() {
     });
 
     videoGrid.appendChild(video);
-    videoElements.push({ video, id: videoId }); // Save reference to video and ID
+    videoElements.push({ video, id: socket.id }); // Simpan reference ke video dan ID pengguna
 }
 
-// Get all cameras
 async function getAllCameras() {
     const currentCamera = mediaStream.getVideoTracks()[0];
     const allDevices = await window.navigator.mediaDevices.enumerateDevices();
@@ -160,7 +203,6 @@ async function getAllCameras() {
     });
 }
 
-// Get all mics
 async function getAllMics() {
     const currentMic = mediaStream.getAudioTracks()[0];
     const allDevices = await window.navigator.mediaDevices.enumerateDevices();
@@ -176,25 +218,21 @@ async function getAllMics() {
     });
 }
 
-// Select a specific camera
 selectCam.addEventListener('input', (e) => {
     const cameraId = e.target.value;
     getMedia(cameraId);
 });
 
-// Select a specific mic
 selectMic.addEventListener('input', (e) => {
     const micId = e.target.value;
     getMedia(null, micId);
 });
 
-// Socket event listener for new joining participants
 socket.on("newJoining", () => {
-    makeAOffer();  // Make an offer when a new participant joins
+    makeAnOffer();
 });
 
-// Make WebRTC connection
-function makeWebRTCConnection() {
+function makeAWebRTCConnection() {
     RTC = new RTCPeerConnection({
         iceServers: [
             { urls: 'stun:stun1.l.google.com:19302' },
@@ -208,12 +246,12 @@ function makeWebRTCConnection() {
     });
 
     RTC.addEventListener('icecandidate', (data) => {
-        socket.emit("sendIceCandidate", data.candidate, roomId);  // Send ICE candidate
+        socket.emit("sendIceCandidate", data.candidate, roomId);
     });
 
-    RTC.addEventListener('track', (data) => {
+    RTC.addEventListener('addstream', (data) => {
         const videoTag = document.createElement('video');
-        videoTag.srcObject = data.streams[0];
+        videoTag.srcObject = data.stream;
         videoTag.addEventListener('loadedmetadata', () => {
             videoTag.play();
         });
@@ -223,10 +261,10 @@ function makeWebRTCConnection() {
 }
 
 // Make an offer
-async function makeAOffer() {
+async function makeAnOffer() {
     const offer = await RTC.createOffer();
     RTC.setLocalDescription(offer);
-    socket.emit("sendTheOffer", offer, roomId);  // Emit offer to room
+    socket.emit("sendTheOffer", offer, roomId);
 }
 
 // Receive offer
@@ -234,7 +272,7 @@ socket.on("receiveOffer", async (offer) => {
     RTC.setRemoteDescription(offer);
     const answer = await RTC.createAnswer();
     RTC.setLocalDescription(answer);
-    socket.emit("sendTheAnswer", answer, roomId);  // Emit answer to room
+    socket.emit("sendTheAnswer", answer, roomId);
 });
 
 // Receive answer
@@ -248,14 +286,20 @@ socket.on("receiveCandidate", (candidate) => {
 });
 
 // Remove media when user leaves
+socket.on("userLeft", (message, userId) => {
+    showNotification(message, "leave");
+    removeUserMedia(userId); // Hapus video berdasarkan userId
+});
+
 function removeUserMedia(userId) {
-    // Find the video element related to the user who left
+    // Temukan elemen video yang terkait dengan pengguna yang keluar
     const videoElement = videoElements.find(item => item.id === userId);
     if (videoElement) {
-        // Remove the video element from the DOM
+        // Hapus elemen video dari DOM
         videoElement.video.remove();
         
-        // Also remove from the videoElements array
+        // Hapus dari array videoElements
         videoElements = videoElements.filter(item => item.id !== userId);
     }
 }
+
