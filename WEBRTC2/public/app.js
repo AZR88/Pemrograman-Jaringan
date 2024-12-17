@@ -1,3 +1,4 @@
+// Video and control element references
 const videoGrid = document.getElementById("video_grid");
 const muteBtn = document.getElementById("muteBtn");
 const cameraoff = document.getElementById("cameraoff");
@@ -8,7 +9,7 @@ const chatInput = document.getElementById("chat-input");
 const chatForm = document.getElementById("chat-form");
 const chatMessages = document.getElementById("chat-messages");
 
-// socket init
+// socket initialization
 const socket = io();
 
 let mediaStream;
@@ -21,10 +22,9 @@ let videoElements = []; // Array to store video elements and their associated ID
 // Send message when the form is submitted
 chatForm.addEventListener("submit", (e) => {
     e.preventDefault();
-
     const message = chatInput.value.trim();
     if (message) {
-        socket.emit("send-message", message);
+        socket.emit("send-message", message, roomId);  // Emit the message with the room ID
         chatInput.value = "";  // Clear input field
     }
 });
@@ -60,7 +60,7 @@ socket.on("receive-message", (message) => {
 });
 
 // Sound mute handler
-muteBtn.addEventListener("click", (e) => {
+muteBtn.addEventListener("click", () => {
     if (mute) {
         mute = false;
         muteBtn.textContent = "Mute yourself";
@@ -119,7 +119,7 @@ async function getMedia(cameraId, micId) {
         getAllMics();
         makeWebRTCConnection();
 
-        socket.emit('joinRoom', roomId);
+        socket.emit('joinRoom', roomId);  // Emit to server that user is joining room
     } catch (error) {
         console.log(error);
     }
@@ -190,7 +190,7 @@ selectMic.addEventListener('input', (e) => {
 
 // Socket event listener for new joining participants
 socket.on("newJoining", () => {
-    makeAOffer();
+    makeAOffer();  // Make an offer when a new participant joins
 });
 
 // Make WebRTC connection
@@ -208,12 +208,12 @@ function makeWebRTCConnection() {
     });
 
     RTC.addEventListener('icecandidate', (data) => {
-        socket.emit("sendIceCandidate", data.candidate, roomId);
+        socket.emit("sendIceCandidate", data.candidate, roomId);  // Send ICE candidate
     });
 
-    RTC.addEventListener('addstream', (data) => {
+    RTC.addEventListener('track', (data) => {
         const videoTag = document.createElement('video');
-        videoTag.srcObject = data.stream;
+        videoTag.srcObject = data.streams[0];
         videoTag.addEventListener('loadedmetadata', () => {
             videoTag.play();
         });
@@ -226,7 +226,7 @@ function makeWebRTCConnection() {
 async function makeAOffer() {
     const offer = await RTC.createOffer();
     RTC.setLocalDescription(offer);
-    socket.emit("sendTheOffer", offer, roomId);
+    socket.emit("sendTheOffer", offer, roomId);  // Emit offer to room
 }
 
 // Receive offer
@@ -234,7 +234,7 @@ socket.on("receiveOffer", async (offer) => {
     RTC.setRemoteDescription(offer);
     const answer = await RTC.createAnswer();
     RTC.setLocalDescription(answer);
-    socket.emit("sendTheAnswer", answer, roomId);
+    socket.emit("sendTheAnswer", answer, roomId);  // Emit answer to room
 });
 
 // Receive answer

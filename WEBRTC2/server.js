@@ -1,10 +1,19 @@
+const fs = require('fs');
+const https = require('https');
 const express = require('express');
-const http = require('http');
 const { v4: uuid } = require('uuid');
 const socketIO = require('socket.io');
 const app = express();
-const expressHTTPServer = http.createServer(app);
-const io = new socketIO.Server(expressHTTPServer);
+
+// Opsi untuk sertifikat SSL
+const options = {
+  key: fs.readFileSync('server.key'),   // Membaca kunci privat
+  cert: fs.readFileSync('server.cert')  // Membaca sertifikat publik
+};
+
+// Membuat server HTTPS
+const server = https.createServer(options, app);
+const io = socketIO(server);
 
 // Mendeklarasikan roomUsers sebagai Map untuk menyimpan data pengguna per ruangan
 let roomUsers = new Map();
@@ -12,8 +21,9 @@ let roomUsers = new Map();
 app.use(express.static('public'));
 app.set('view engine', 'ejs');
 
-const port = 3001;
-const baseURL = `http://localhost:${port}/`; // Base URL including port
+const port = 2037;
+const ipAddress = '192.168.1.6'; // Ganti dengan alamat IP lokal Anda
+const baseURL = `https://${ipAddress}:${port}/`;  // Menggunakan IP address sebagai base URL
 
 app.get('/', (req, res) => {
     const roomId = uuid();  // Generate new room ID
@@ -27,9 +37,7 @@ app.get("/:roomId", (req, res) => {
     const roomId = req.params.roomId;
     const roomLink = `${baseURL}${roomId}`; // Create the full room link
     console.log(`Accessed room: ${roomLink}`);  // Log the room access link
-    res.render('index', {
-        roomId
-    });
+    res.render('index', { roomId });
 });
 
 io.on('connection', (socket) => {
@@ -99,6 +107,7 @@ io.on('connection', (socket) => {
     }
 });
 
-expressHTTPServer.listen(port, () => {
-    console.log(`Server is running on port ${baseURL}`);
+// Menjalankan server HTTPS pada IP dan port tertentu
+server.listen(port, ipAddress, () => {
+  console.log(`Server is running at https://${ipAddress}:${port}`);
 });
