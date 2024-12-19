@@ -92,6 +92,10 @@ cameraoff.addEventListener('click', () => {
 });
 
 // Event listener untuk tombol share screen
+// Event listener untuk tombol share screen
+// Event listener untuk tombol share screen
+// Event listener untuk tombol share screen
+// Event listener untuk tombol share screen
 screenShare.addEventListener("click", async () => {
     try {
         const displayMediaOptions = {
@@ -101,34 +105,114 @@ screenShare.addEventListener("click", async () => {
             audio: false
         };
         const screenStream = await navigator.mediaDevices.getDisplayMedia(displayMediaOptions);
-        
+
         // Tambahkan track dari screen share ke peer connection
         screenStream.getTracks().forEach(track => {
             RTC.addTrack(track, screenStream);
         });
+        
 
-        // Perbarui videoGrid dengan stream dari share screen
+        const streamId = `screen-${Date.now()}`; // Berikan ID unik untuk stream
+        socket.emit('startScreenShare', roomId, streamId);
+
         const video = document.createElement('video');
         video.srcObject = screenStream;
-        video.id = `screen-${Date.now()}`; // Berikan ID unik untuk video
+        video.id = streamId;
         video.addEventListener('loadedmetadata', () => {
             video.play();
         });
 
         videoGrid.appendChild(video);
 
-        // Event listener untuk menangani penghentian screen sharing
         screenStream.getVideoTracks()[0].addEventListener('ended', () => {
             console.log('Screen sharing stopped');
+            socket.emit('stopScreenShare', roomId, streamId);
             const videoElement = document.getElementById(video.id);
             if (videoElement) {
-                videoElement.remove(); // Hapus elemen video ketika screen sharing berhenti
+                videoElement.remove();
             }
         });
     } catch (error) {
         console.error("Error sharing screen: ", error);
     }
 });
+
+// Tambahkan elemen video baru ketika pengguna memulai berbagi layar
+socket.on('userStartedScreenShare', (streamId) => {
+    const video = document.createElement('video');
+    video.id = streamId;
+    video.autoplay = true;
+    videoGrid.appendChild(video);
+});
+
+// Hapus elemen video ketika pengguna menghentikan berbagi layar
+socket.on('userStoppedScreenShare', (streamId) => {
+    const videoElement = document.getElementById(streamId);
+    if (videoElement) {
+        videoElement.remove();
+    }
+});
+
+function makeAWebRTCConnection() {
+    RTC = new RTCPeerConnection({
+        iceServers: [
+            { urls: 'stun:stun1.l.google.com:19302' },
+            { urls: 'stun:stun3.l.google.com:19302' },
+            { urls: 'stun:stun4.l.google.com:19302' }
+        ]
+    });
+
+    mediaStream.getTracks().forEach(track => {
+        RTC.addTrack(track, mediaStream);
+    });
+
+    RTC.addEventListener('icecandidate', (data) => {
+        socket.emit("sendIceCandidate", data.candidate, roomId);
+    });
+
+    RTC.addEventListener('track', (event) => {
+    let videoTag = document.querySelector(`#video-${event.streams[0].id}`);
+    if (!videoTag) {
+        videoTag = document.createElement('video');
+        videoTag.srcObject = event.streams[0];
+        videoTag.id = `video-${event.streams[0].id}`;
+        videoTag.addEventListener('loadedmetadata', () => {
+            videoTag.play();
+        });
+        videoGrid.appendChild(videoTag);
+    }
+});
+
+}
+
+// Tambahkan track yang baru ditambahkan dari pengguna lain
+socket.on("userStartedScreenShare", (streamId) => {
+    makeAWebRTCConnection();
+    const video = document.createElement('video');
+    video.id = streamId;
+    video.autoplay = true;
+    videoGrid.appendChild(video);
+});
+
+
+
+// Mendengarkan event startShareScreen dan stopShareScreen dari server
+socket.on("startShareScreen", (streamId) => {
+    // Buat video element untuk menampilkan share screen dari pengguna lain
+    const video = document.createElement('video');
+    video.id = `screen-${streamId}`;
+    video.autoplay = true;
+    videoGrid.appendChild(video);
+});
+
+socket.on("stopShareScreen", (streamId) => {
+    // Hapus video element ketika share screen berhenti
+    const videoElement = document.getElementById(`screen-${streamId}`);
+    if (videoElement) {
+        videoElement.remove();
+    }
+});
+
 
 
 
@@ -232,33 +316,8 @@ socket.on("newJoining", () => {
     makeAnOffer();
 });
 
-function makeAWebRTCConnection() {
-    RTC = new RTCPeerConnection({
-        iceServers: [
-            { urls: 'stun:stun1.l.google.com:19302' },
-            { urls: 'stun:stun3.l.google.com:19302' },
-            { urls: 'stun:stun4.l.google.com:19302' }
-        ]
-    });
 
-    mediaStream.getTracks().forEach(track => {
-        RTC.addTrack(track, mediaStream);
-    });
 
-    RTC.addEventListener('icecandidate', (data) => {
-        socket.emit("sendIceCandidate", data.candidate, roomId);
-    });
-
-    RTC.addEventListener('addstream', (data) => {
-        const videoTag = document.createElement('video');
-        videoTag.srcObject = data.stream;
-        videoTag.addEventListener('loadedmetadata', () => {
-            videoTag.play();
-        });
-
-        videoGrid.appendChild(videoTag);
-    });
-}
 
 // Make an offer
 async function makeAnOffer() {

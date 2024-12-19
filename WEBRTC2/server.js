@@ -61,6 +61,16 @@ io.on('connection', (socket) => {
         socket.to(roomId).emit("receive-message", `User ${socket.id}: ${message}`);
     });
 
+    // Event untuk memulai share screen
+    socket.on('startScreenShare', (roomId, streamId) => {
+        socket.to(roomId).emit('userStartedScreenShare', { userId: socket.id, streamId });
+    });
+
+    // Event untuk menghentikan share screen
+    socket.on('stopScreenShare', (roomId, streamId) => {
+        socket.to(roomId).emit('userStoppedScreenShare', streamId);
+    });
+
     socket.on('disconnect', () => {
         handleUserDisconnect(socket);
     });
@@ -80,7 +90,7 @@ io.on('connection', (socket) => {
         for (let [roomId, users] of roomUsers.entries()) {
             if (users.has(socket.id)) {
                 users.delete(socket.id);
-                socket.to(roomId).emit('userLeft', `User ${socket.id} has left the room.`, socket.id); // Kirim userId
+                socket.to(roomId).emit('userLeft', `User ${socket.id} has left the room.`, socket.id);
                 if (users.size === 0) {
                     roomUsers.delete(roomId);
                     console.log(`Room ${roomId} has been deleted (empty).`);
@@ -88,8 +98,9 @@ io.on('connection', (socket) => {
             }
         }
     }
-    
 });
+
+
 
 
 expressHTTPSServer.listen(port, '0.0.0.0', () => {
